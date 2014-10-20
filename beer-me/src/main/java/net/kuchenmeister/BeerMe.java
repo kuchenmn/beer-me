@@ -1,0 +1,175 @@
+package net.kuchenmeister;
+
+import freemarker.template.Configuration;
+import freemarker.template.DefaultObjectWrapperBuilder;
+import freemarker.template.ObjectWrapper;
+import freemarker.template.Template;
+import spark.Request;
+import spark.Response;
+import spark.Route;
+import spark.Spark;
+
+import java.io.StringWriter;
+import java.util.*;
+
+public class BeerMe {
+
+	public static void main(String[] args) throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.setClassForTemplateLoading(BeerMe.class, "/");
+
+        Spark.get(new Route("/") {
+            @Override
+            public Object handle(Request request, Response response) {
+                StringWriter writer = new StringWriter();
+                try {
+                    Template template = configuration.getTemplate("zipForm.ftl");
+                    template.process(getCities(), writer);
+                } catch (Exception e) {
+                    halt(500);
+                    e.printStackTrace();
+                }
+                return writer;
+            }
+        });
+
+        Spark.get(new Route("/enterZip") {
+            @Override
+            public Object handle(Request request, Response response) {
+                StringWriter writer = new StringWriter();
+                try {
+                    Template template = configuration.getTemplate("zipForm.ftl");
+
+                    Map<String, Object> helloMap = new HashMap<String, Object>();
+                    helloMap.put("name", "BeerMe");
+                    template.process(helloMap, writer);
+                } catch (Exception e) {
+                    halt(500);
+                    e.printStackTrace();
+                }
+                return writer;
+            }
+        });
+
+        Spark.post(new Route("/search") {
+            @Override
+            public Object handle(Request request, Response response) {
+                final String city = request.queryParams("city");
+//                if (city == null) {
+//                    return "Please select a city";
+//                } else {
+//                    return "Searching for beer in " + city;
+//                }
+                StringWriter writer = new StringWriter();
+                try {
+                    Template template = configuration.getTemplate("locations.ftl");
+//                    List<Location> locations = findLocationsByCityOrState(city);
+                    List<Location> locations = findLocationsByCityOrState("Minneapolis,MN");
+                    Map<String, Object> locationsMap = new HashMap<String, Object>();
+                    locationsMap.put("locations", locations);
+                    ObjectWrapper wrapper = new DefaultObjectWrapperBuilder(Configuration.VERSION_2_3_21).build();
+//                    template.process(getCities(), writer);
+                    template.process(locations, writer, wrapper);
+                    System.out.println(writer);
+                } catch (Exception e) {
+                    halt(500);
+                    e.printStackTrace();
+                }
+                return writer;
+            }
+        });
+
+//		long start = System.nanoTime();
+//		List<Location> locations = new ArrayList<Location>();
+		// find locations by city or state
+//		locations = findLocationsByCityOrState("Minneapolis,MN");
+
+		// find breweries only
+//		List<Location> allLocations = findLocations("Minneapolis,MN");
+//		for (Location location : allLocations) {
+//			if (location.getStatus().equals("Brewery")) {
+//				locations.add(location);
+//			}
+//		}
+//		populateAdditionalInfo(locations);
+		// -------------
+		// stream version
+//		locations = findLocations("Minneapolis,MN").stream()
+//				                                    .filter(location -> location.getStatus().equals("Brewery"))
+//				                                    .collect(Collectors.toList());
+//		populateAdditionalInfo(locations);
+		// -------------
+
+		// find breweries only with a score 85 and above
+//		List<Location> allLocations = findLocations("Minneapolis,MN");
+//		populateAdditionalInfo(allLocations);
+//		for (Location location : allLocations) {
+//			if (location.getStatus().equals("Brewery")) {
+//				if (Double.valueOf(location.getScore()) >= 85) {
+//					locations.add(location);
+//				}
+//			}
+//		}
+
+		// -------------
+		// stream version
+//		locations = findLocations("Minneapolis,MN")
+//				             .parallelStream()
+//				             .map(location -> populateAdditionalInfo(location))
+//				             .filter(location -> location.getStatus().equals("Brewery"))
+//							 .filter(location -> Double.valueOf(location.getScore()) >= 85)
+//				             .collect(Collectors.toList());
+//		// -------------
+//
+//		long end = System.nanoTime();
+//		System.out.println("Locations Found: " + locations.size());
+//		System.out.println("Time: " + (end - start)/1.0e9);
+//		for (Location location : locations) {
+//			System.out.println(location.toString());
+//		}
+	}
+
+    private static Map<String, Object> getCities() {
+        Map<String, Object> cities = new HashMap<String, Object>();
+        cities.put("cities", Arrays.asList("Minneapolis, MN", "St. Paul, MN", "Durango, CO"));
+        return cities;
+    }
+
+	private static List<Location> findLocationsByCityOrState(String searchString) {
+		List<Location> locations = findLocations(searchString);
+		System.out.println("Found " + locations.size() + " locations");
+//		populateAdditionalInfo(locations);
+		return locations;
+	}
+
+	private static List<Location> findLocations(String searchString) {
+		List<Location> locations = new ArrayList<Location>();
+		try {
+			locations =  BrewMapper.getLocations(searchString);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return locations;
+	}
+
+	private static void populateAdditionalInfo(List<Location> locations) {
+		for (Location location : locations) {
+			try {
+				location.setLatLng(BrewMapper.getLatLng(location.getId()));
+				location.setScore(ScoreService.getScore(location.getId()));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private static Location populateAdditionalInfo(Location location) {
+		try {
+			location.setLatLng(BrewMapper.getLatLng(location.getId()));
+			location.setScore(ScoreService.getScore(location.getId()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return location;
+	}
+}
