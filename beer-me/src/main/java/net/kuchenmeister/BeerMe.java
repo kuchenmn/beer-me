@@ -23,26 +23,10 @@ public class BeerMe {
             public Object handle(Request request, Response response) {
                 StringWriter writer = new StringWriter();
                 try {
-                    Template template = configuration.getTemplate("zipForm.ftl");
-                    template.process(getCities(), writer);
-                } catch (Exception e) {
-                    halt(500);
-                    e.printStackTrace();
-                }
-                return writer;
-            }
-        });
-
-        Spark.get(new Route("/enterZip") {
-            @Override
-            public Object handle(Request request, Response response) {
-                StringWriter writer = new StringWriter();
-                try {
-                    Template template = configuration.getTemplate("zipForm.ftl");
-
-                    Map<String, Object> helloMap = new HashMap<String, Object>();
-                    helloMap.put("name", "BeerMe");
-                    template.process(helloMap, writer);
+                    Template template = configuration.getTemplate("locations.ftl");
+                    Map<String, Object> citiesMap = new HashMap<>();
+                    citiesMap.put("cities", getCities());
+                    template.process(citiesMap, writer);
                 } catch (Exception e) {
                     halt(500);
                     e.printStackTrace();
@@ -55,21 +39,16 @@ public class BeerMe {
             @Override
             public Object handle(Request request, Response response) {
                 final String city = request.queryParams("city");
-//                if (city == null) {
-//                    return "Please select a city";
-//                } else {
-//                    return "Searching for beer in " + city;
-//                }
                 StringWriter writer = new StringWriter();
                 try {
                     Template template = configuration.getTemplate("locations.ftl");
-//                    List<Location> locations = findLocationsByCityOrState(city);
-                    List<Location> locations = findLocationsByCityOrState("Minneapolis,MN");
-                    Map<String, Object> locationsMap = new HashMap<String, Object>();
+                    List<Location> locations = findLocationsByCityOrState(city);
+                    Map<String, Object> locationsMap = new HashMap<>();
                     locationsMap.put("locations", locations);
+                    locationsMap.put("cities", getCities());
                     ObjectWrapper wrapper = new DefaultObjectWrapperBuilder(Configuration.VERSION_2_3_21).build();
 //                    template.process(getCities(), writer);
-                    template.process(locations, writer, wrapper);
+                    template.process(locationsMap, writer, wrapper);
                     System.out.println(writer);
                 } catch (Exception e) {
                     halt(500);
@@ -129,10 +108,8 @@ public class BeerMe {
 //		}
 	}
 
-    private static Map<String, Object> getCities() {
-        Map<String, Object> cities = new HashMap<String, Object>();
-        cities.put("cities", Arrays.asList("Minneapolis, MN", "St. Paul, MN", "Durango, CO"));
-        return cities;
+    private static List<String> getCities() {
+        return Arrays.asList("Minneapolis,MN", "St.Paul,MN", "Durango,CO");
     }
 
 	private static List<Location> findLocationsByCityOrState(String searchString) {
