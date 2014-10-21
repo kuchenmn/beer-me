@@ -11,6 +11,7 @@ import spark.Spark;
 
 import java.io.StringWriter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class BeerMe {
 
@@ -26,6 +27,8 @@ public class BeerMe {
                     Template template = configuration.getTemplate("locations.ftl");
                     Map<String, Object> citiesMap = new HashMap<>();
                     citiesMap.put("cities", getCities());
+                    citiesMap.put("citySelected", "none");
+                    citiesMap.put("locationTypes", getLocationTypes());
                     template.process(citiesMap, writer);
                 } catch (Exception e) {
                     halt(500);
@@ -39,13 +42,18 @@ public class BeerMe {
             @Override
             public Object handle(Request request, Response response) {
                 final String city = request.queryParams("city");
+                List<String> filters = getFilters(request);
                 StringWriter writer = new StringWriter();
                 try {
                     Template template = configuration.getTemplate("locations.ftl");
-                    List<Location> locations = findLocationsByCityOrState(city);
+                    List<Location> locations = findLocations(city).stream()
+                            .filter(location -> filters.stream().anyMatch(location.getStatus()::equals))
+                            .collect(Collectors.toList());
                     Map<String, Object> locationsMap = new HashMap<>();
                     locationsMap.put("locations", locations);
                     locationsMap.put("cities", getCities());
+                    locationsMap.put("citySelected", city);
+                    locationsMap.put("locationTypes", getLocationTypes());
                     ObjectWrapper wrapper = new DefaultObjectWrapperBuilder(Configuration.VERSION_2_3_21).build();
 //                    template.process(getCities(), writer);
                     template.process(locationsMap, writer, wrapper);
@@ -57,6 +65,7 @@ public class BeerMe {
                 return writer;
             }
         });
+
 
 //		long start = System.nanoTime();
 //		List<Location> locations = new ArrayList<Location>();
@@ -108,8 +117,21 @@ public class BeerMe {
 //		}
 	}
 
+    // TODO: This should be functionalized
+    private static List<String> getFilters(Request request) {
+        List<String> filters = new ArrayList<>();
+        for (String type : getLocationTypes()) {
+            filters.add(request.queryParams(type));
+        }
+        return filters;
+    }
+
+    private static List<String> getLocationTypes() {
+        return Arrays.asList("Beer Bar", "Beer Store", "Brewery", "Brewpub", "Homebrew Store");
+    }
+
     private static List<String> getCities() {
-        return Arrays.asList("Minneapolis,MN", "St.Paul,MN", "Durango,CO");
+        return Arrays.asList("Minneapolis,MN", "StPaul,MN", "Durango,CO", "MN", "WI");
     }
 
 	private static List<Location> findLocationsByCityOrState(String searchString) {

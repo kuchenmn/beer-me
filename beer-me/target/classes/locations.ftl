@@ -4,14 +4,22 @@
 </head>
 <body>
     <#if cities??>
-    <p> City Form
+    <p>
         <form action="/search" method="POST">
-            City:
+            Location:
             <select name="city">
                 <#list cities as city>
-                    <option value="${city}">${city}</option>
+                    <#if citySelected == city>
+                        <option value="${city}" selected>${city}</option>
+                    <#else>
+                        <option value="${city}">${city}</option>
+                    </#if>
                 </#list>
             </select>
+            <p>
+            <#list locationTypes as type>
+                <input type="checkbox" name="${type}" value="${type}">${type}<br>
+            </#list>
             <input type="submit" value="Search">
         </form>
     </p>
